@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FF14 コスモ技巧点計算機 - Cosmo Splendor Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #141c2f;
+      --card-border: #233153;
+      --text-color: #e2e8f0;
+      --text-muted: #94a3b8;
+      --primary: #f59e0b; /* FF14 Gold style */
+      --primary-glow: rgba(245, 158, 11, 0.2);
+      --accent: #3b82f6; /* Cosmic Blue */
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --success: #10b981;
+      --danger: #ef4444;
+      --font-main: 'Inter', 'Noto Sans JP', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: var(--font-main);
+      padding: 2rem 1rem;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    header h1 span {
+      color: var(--primary);
+      text-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    /* Grid Layout for Top Dashboards */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 2fr 1fr;
+      }
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 1.2rem;
+      border-left: 4px solid var(--primary);
+      padding-left: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Overall Summary Layout */
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 480px) {
+      .summary-stats {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .stat-value.highlight {
+      color: var(--primary);
+    }
+
+    /* Progress bar styling */
+    .progress-container {
+      margin-top: 1rem;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-bar-bg {
+      background-color: rgba(255, 255, 255, 0.05);
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      width: 0%;
+      border-radius: 6px;
+      transition: width 0.5s ease-out;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Simulation card styling */
+    .sim-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .input-group input {
+      background-color: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      color: #ffffff;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    /* Bulk operations / Utilities */
+    .bulk-card {
+      margin-bottom: 2rem;
+    }
+
+    .bulk-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .bulk-actions .input-group {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: #000000;
+      border: none;
+      padding: 0.65rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 0.2s, transform 0.1s;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      background-color: #fbbf24;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-color);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* 8 Jobs Grid Layout */
+    .jobs-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .jobs-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .jobs-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Job Card Styling */
+    .job-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .job-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .job-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.75rem;
+    }
+
+    .job-name-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .job-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background-color: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--primary);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .job-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #ffffff;
+    }
+
+    .job-badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .job-badge.completed {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .job-body-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .job-results {
+      grid-column: span 2;
+      background-color: rgba(15, 23, 42, 0.4);
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .result-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .result-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .result-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .result-value.highlight {
+      color: var(--primary);
+    }
+
+    /* Footer styling */
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .reset-all-btn {
+      margin-left: auto;
+    }
+
+    .flex-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>FF14 <span>コスモ技巧点計算機</span></h1>
+      <p>ジョブ毎の目標50万点に向けた周回数と残り時間の計算・管理ツール</p>
+    </header>
+
+    <!-- Top Dashboard -->
+    <div class="dashboard-grid">
+      <!-- Overall Progress Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>全体進捗状況</span>
+        </div>
+        <div class="summary-stats">
+          <div class="stat-box">
+            <div class="stat-label">合計獲得点数</div>
+            <div class="stat-value" id="total-current-points">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">総残り点数</div>
+            <div class="stat-value" id="total-remaining-points">4,000,000</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">総残り周回数</div>
+            <div class="stat-value highlight" id="total-remaining-runs">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">総残り時間</div>
+            <div class="stat-value highlight" id="total-remaining-hours">0時間 0分</div>
+          </div>
+        </div>
+        <div class="progress-container">
+          <div class="progress-info">
+            <span>全体進捗率 (目標: 4,000,000点)</span>
+            <span id="overall-percentage">0.0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="overall-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playtime Simulation Card -->
+      <div class="card">
+        <div class="card-title">目標達成シミュレーター</div>
+        <div class="sim-inputs">
+          <div class="input-group">
+            <label for="daily-playtime">1日のプレイ予定時間 (時間)</label>
+            <input type="number" id="daily-playtime" value="2" min="0.1" step="0.1">
+          </div>
+          <div class="stat-box" style="margin-top: 0.5rem; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.15);">
+            <div class="stat-label" style="color: var(--text-color);">目標達成までの目安日数</div>
+            <div class="stat-value highlight" id="days-remaining" style="font-size: 1.8rem;">0日</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Settings Card -->
+    <div class="card bulk-card">
+      <div class="card-title">
+        <div class="flex-header">
+          <span>一括設定 & ユーティリティ</span>
+          <button class="btn btn-secondary reset-all-btn" id="reset-all-btn">全データを初期化</button>
+        </div>
+      </div>
+      <div class="bulk-actions">
+        <div class="input-group">
+          <label for="bulk-points-per-run">1回あたりの獲得点数を一括適用</label>
+          <input type="number" id="bulk-points-per-run" value="5800" min="1">
+        </div>
+        <div class="input-group">
+          <label for="bulk-minutes-per-run">1回あたりの必要分数（手動）を一括適用</label>
+          <input type="number" id="bulk-minutes-per-run" value="3" min="0.1" step="0.1">
+        </div>
+        <button class="btn" id="apply-bulk-btn">全ジョブに適用</button>
+      </div>
+    </div>
+
+    <!-- Jobs Grid -->
+    <div class="jobs-grid" id="jobs-container">
+      <!-- Dynamic Job Cards will be generated here by Javascript -->
+    </div>
+
+    <footer>
+      <p>&copy; 2026 FF14 Cosmo Splendor Calculator. Designed for Final Fantasy XIV.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Config and Job list
+    const TARGET_POINTS_PER_JOB = 500000;
+    const JOBS_DATA = [
+      { id: 'crp', name: '木工師', key: 'Carpenter' },
+      { id: 'bsm', name: '鍛冶師', key: 'Blacksmith' },
+      { id: 'arm', name: '甲冑師', key: 'Armorer' },
+      { id: 'gsm', name: '彫金師', key: 'Goldsmith' },
+      { id: 'ltw', name: '革細工師', key: 'Leatherworker' },
+      { id: 'wvr', name: '裁縫師', key: 'Weaver' },
+      { id: 'alc', name: '錬金術師', key: 'Alchemist' },
+      { id: 'cul', name: '調理師', key: 'Culinarian' }
+    ];
+
+    // Default configuration for initial load
+    const DEFAULT_JOB_CONFIGS = {};
+    JOBS_DATA.forEach(job => {
+      DEFAULT_JOB_CONFIGS[job.id] = {
+        current: 0,
+        pointsPerRun: 5800,
+        minutesPerRun: 3
+      };
+    });
+
+    let state = {
+      jobs: JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS)),
+      dailyPlaytime: 2
+    };
+
+    // Load state from localStorage if exists
+    function loadState() {
+      const saved = localStorage.getItem('ff14_cosmo_calc_state');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.jobs) {
+            // Merge defaults in case schema changed
+            state.jobs = { ...JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS)), ...parsed.jobs };
+            state.dailyPlaytime = parsed.dailyPlaytime || 2;
+          }
+        } catch (e) {
+          console.error("Failed to parse state", e);
+        }
+      }
+    }
+
+    // Save state to localStorage
+    function saveState() {
+      localStorage.setItem('ff14_cosmo_calc_state', JSON.stringify(state));
+    }
+
+    // Render HTML structure of Job Cards
+    function renderJobs() {
+      const container = document.getElementById('jobs-container');
+      container.innerHTML = '';
+
+      JOBS_DATA.forEach(job => {
+        const jobData = state.jobs[job.id];
+        
+        const card = document.createElement('div');
+        card.className = 'job-card';
+        card.id = `card-${job.id}`;
+
+        card.innerHTML = `
+          <div class="job-header">
+            <div class="job-name-wrapper">
+              <div class="job-icon">${job.name.charAt(0)}</div>
+              <span class="job-name">${job.name}</span>
+            </div>
+            <span class="job-badge" id="badge-${job.id}">進行中</span>
+          </div>
+
+          <div class="job-body-grid">
+            <div class="input-group">
+              <label for="current-${job.id}">現在点数 (手動)</label>
+              <input type="number" id="current-${job.id}" value="${jobData.current}" min="0" max="${TARGET_POINTS_PER_JOB}">
+            </div>
+
+            <div class="input-group">
+              <label for="points-${job.id}">1回あたりの点数</label>
+              <input type="number" id="points-${job.id}" value="${jobData.pointsPerRun}" min="1">
+            </div>
+
+            <div class="input-group" style="grid-column: span 2;">
+              <label for="minutes-${job.id}">1回あたりの必要分数</label>
+              <input type="number" id="minutes-${job.id}" value="${jobData.minutesPerRun}" min="0.1" step="0.1">
+            </div>
+          </div>
+
+          <div class="progress-container">
+            <div class="progress-info">
+              <span>進捗率</span>
+              <span id="percentage-${job.id}">0.0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="bar-${job.id}"></div>
+            </div>
+          </div>
+
+          <div class="job-results">
+            <div class="result-item">
+              <span class="result-label">残り点数</span>
+              <span class="result-value" id="rem-points-${job.id}">500,000</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">残り周回数</span>
+              <span class="result-value highlight" id="rem-runs-${job.id}">0</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">残り時間</span>
+              <span class="result-value highlight" id="rem-time-${job.id}">0分</span>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+
+        // Bind events
+        document.getElementById(`current-${job.id}`).addEventListener('input', (e) => {
+          let val = parseInt(e.target.value) || 0;
+          if (val < 0) val = 0;
+          if (val > TARGET_POINTS_PER_JOB) val = TARGET_POINTS_PER_JOB;
+          e.target.value = val;
+          state.jobs[job.id].current = val;
+          updateCalculations();
+          saveState();
+        });
+
+        document.getElementById(`points-${job.id}`).addEventListener('input', (e) => {
+          let val = parseInt(e.target.value) || 1;
+          if (val < 1) val = 1;
+          state.jobs[job.id].pointsPerRun = val;
+          updateCalculations();
+          saveState();
+        });
+
+        document.getElementById(`minutes-${job.id}`).addEventListener('input', (e) => {
+          let val = parseFloat(e.target.value) || 0.1;
+          if (val < 0.1) val = 0.1;
+          state.jobs[job.id].minutesPerRun = val;
+          updateCalculations();
+          saveState();
+        });
+      });
+    }
+
+    // Perform calculations and update UI
+    function updateCalculations() {
+      let totalCurrent = 0;
+      let totalRemainingPoints = 0;
+      let totalRemainingRuns = 0;
+      let totalRemainingMinutes = 0;
+
+      JOBS_DATA.forEach(job => {
+        const jobData = state.jobs[job.id];
+        const current = jobData.current;
+        const target = TARGET_POINTS_PER_JOB;
+        const remaining = Math.max(0, target - current);
+        
+        totalCurrent += current;
+        totalRemainingPoints += remaining;
+
+        // Progress percentage for job
+        const percentage = ((current / target) * 100).toFixed(1);
+        document.getElementById(`percentage-${job.id}`).textContent = `${percentage}%`;
+        document.getElementById(`bar-${job.id}`).style.width = `${percentage}%`;
+
+        // Badge update
+        const badge = document.getElementById(`badge-${job.id}`);
+        if (current >= target) {
+          badge.textContent = '完了';
+          badge.className = 'job-badge completed';
+        } else {
+          badge.textContent = '進行中';
+          badge.className = 'job-badge';
+        }
+
+        // Remaining points
+        document.getElementById(`rem-points-${job.id}`).textContent = remaining.toLocaleString();
+
+        // Remaining runs
+        const ppr = jobData.pointsPerRun || 1;
+        const runs = Math.ceil(remaining / ppr);
+        document.getElementById(`rem-runs-${job.id}`).textContent = runs.toLocaleString();
+        totalRemainingRuns += runs;
+
+        // Remaining time for this job
+        const minutes = runs * jobData.minutesPerRun;
+        totalRemainingMinutes += minutes;
+
+        // Format job remaining time
+        let timeStr = '0分';
+        if (minutes > 0) {
+          const h = Math.floor(minutes / 60);
+          const m = Math.ceil(minutes % 60);
+          if (h > 0) {
+            timeStr = `${h}時間 ${m}分`;
+          } else {
+            timeStr = `${m}分`;
+          }
+        }
+        document.getElementById(`rem-time-${job.id}`).textContent = timeStr;
+      });
+
+      // Update Dashboard totals
+      document.getElementById('total-current-points').textContent = totalCurrent.toLocaleString();
+      document.getElementById('total-remaining-points').textContent = totalRemainingPoints.toLocaleString();
+      document.getElementById('total-remaining-runs').textContent = totalRemainingRuns.toLocaleString();
+
+      // Format Total remaining time
+      let totalHoursVal = totalRemainingMinutes / 60;
+      let totalH = Math.floor(totalHoursVal);
+      let totalM = Math.ceil(totalRemainingMinutes % 60);
+      document.getElementById('total-remaining-hours').textContent = `${totalH}時間 ${totalM}分`;
+
+      const overallPercentage = ((totalCurrent / (TARGET_POINTS_PER_JOB * JOBS_DATA.length)) * 100).toFixed(1);
+      document.getElementById('overall-percentage').textContent = `${overallPercentage}%`;
+      document.getElementById('overall-progress-bar').style.width = `${overallPercentage}%`;
+
+      // Sim target days calculation
+      const dailyTime = parseFloat(document.getElementById('daily-playtime').value) || 2;
+      state.dailyPlaytime = dailyTime;
+      if (totalHoursVal > 0 && dailyTime > 0) {
+        const days = (totalHoursVal / dailyTime).toFixed(1);
+        document.getElementById('days-remaining').textContent = `${days}日`;
+      } else {
+        document.getElementById('days-remaining').textContent = '0日';
+      }
+    }
+
+    // Initialize application events
+    document.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderJobs();
+      updateCalculations();
+
+      // Simulation playtime input bind
+      document.getElementById('daily-playtime').addEventListener('input', () => {
+        updateCalculations();
+        saveState();
+      });
+
+      // Bulk Apply Event
+      document.getElementById('apply-bulk-btn').addEventListener('click', () => {
+        const bulkPPR = parseInt(document.getElementById('bulk-points-per-run').value) || 5800;
+        const bulkMPR = parseFloat(document.getElementById('bulk-minutes-per-run').value) || 3;
+
+        JOBS_DATA.forEach(job => {
+          state.jobs[job.id].pointsPerRun = bulkPPR;
+          state.jobs[job.id].minutesPerRun = bulkMPR;
+        });
+
+        renderJobs();
+        updateCalculations();
+        saveState();
+      });
+
+      // Reset All Data Event
+      document.getElementById('reset-all-btn').addEventListener('click', () => {
+        if (confirm('すべての入力データをリセットしてよろしいですか？')) {
+          state.jobs = JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS));
+          state.dailyPlaytime = 2;
+          document.getElementById('daily-playtime').value = 2;
+          renderJobs();
+          updateCalculations();
+          saveState();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
