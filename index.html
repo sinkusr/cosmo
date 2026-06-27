@@ -75,6 +75,46 @@
       font-size: 1rem;
     }
 
+    /* Tabs Navigation */
+    .tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--card-border);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.5rem 1.2rem;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #ffffff;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -0.65rem;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--primary);
+      box-shadow: 0 0 8px var(--primary-glow);
+    }
+
     /* Grid Layout for Top Dashboards */
     .dashboard-grid {
       display: grid;
@@ -269,7 +309,7 @@
       background-color: rgba(255, 255, 255, 0.1);
     }
 
-    /* 8 Jobs Grid Layout */
+    /* Jobs Grid Layout */
     .jobs-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -278,12 +318,6 @@
     }
 
     @media (min-width: 768px) {
-      .jobs-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (min-width: 1024px) {
       .jobs-grid {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -420,15 +454,21 @@
   <div class="container">
     <header>
       <h1>FF14 <span>コスモ技巧点計算機</span></h1>
-      <p>ジョブ毎の目標50万点に向けた周回数と残り時間の計算・管理ツール</p>
+      <p>目標50万点に向けた周回数と残り時間の計算・管理ツール</p>
     </header>
+
+    <!-- Tab Bar -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-crafter" onclick="switchCategory('crafter')">クラフター (8ジョブ)</button>
+      <button class="tab-btn" id="tab-gatherer" onclick="switchCategory('gatherer')">ギャザラー (3ジョブ)</button>
+    </div>
 
     <!-- Top Dashboard -->
     <div class="dashboard-grid">
       <!-- Overall Progress Card -->
       <div class="card">
         <div class="card-title">
-          <span>全体進捗状況</span>
+          <span id="dashboard-title">クラフター 進捗状況</span>
         </div>
         <div class="summary-stats">
           <div class="stat-box">
@@ -450,7 +490,7 @@
         </div>
         <div class="progress-container">
           <div class="progress-info">
-            <span>全体進捗率 (目標: 4,000,000点)</span>
+            <span id="progress-goal-label">全体進捗率 (目標: 4,000,000点)</span>
             <span id="overall-percentage">0.0%</span>
           </div>
           <div class="progress-bar-bg">
@@ -479,8 +519,8 @@
     <div class="card bulk-card">
       <div class="card-title">
         <div class="flex-header">
-          <span>一括設定 & ユーティリティ</span>
-          <button class="btn btn-secondary reset-all-btn" id="reset-all-btn">全データを初期化</button>
+          <span id="bulk-title">クラフター 一括設定</span>
+          <button class="btn btn-secondary reset-all-btn" id="reset-all-btn">現在のカテゴリを初期化</button>
         </div>
       </div>
       <div class="bulk-actions">
@@ -507,43 +547,69 @@
   </div>
 
   <script>
-    // Config and Job list
     const TARGET_POINTS_PER_JOB = 500000;
-    const JOBS_DATA = [
-      { id: 'crp', name: '木工師', key: 'Carpenter' },
-      { id: 'bsm', name: '鍛冶師', key: 'Blacksmith' },
-      { id: 'arm', name: '甲冑師', key: 'Armorer' },
-      { id: 'gsm', name: '彫金師', key: 'Goldsmith' },
-      { id: 'ltw', name: '革細工師', key: 'Leatherworker' },
-      { id: 'wvr', name: '裁縫師', key: 'Weaver' },
-      { id: 'alc', name: '錬金術師', key: 'Alchemist' },
-      { id: 'cul', name: '調理師', key: 'Culinarian' }
-    ];
+    
+    const CATEGORIES = {
+      crafter: {
+        name: 'クラフター',
+        key: 'crafter',
+        jobs: [
+          { id: 'crp', name: '木工師' },
+          { id: 'bsm', name: '鍛冶師' },
+          { id: 'arm', name: '甲冑師' },
+          { id: 'gsm', name: '彫金師' },
+          { id: 'ltw', name: '革細工師' },
+          { id: 'wvr', name: '裁縫師' },
+          { id: 'alc', name: '錬金術師' },
+          { id: 'cul', name: '調理師' }
+        ],
+        defaultPPR: 5800,
+        defaultMPR: 3
+      },
+      gatherer: {
+        name: 'ギャザラー',
+        key: 'gatherer',
+        jobs: [
+          { id: 'min', name: '採掘師' },
+          { id: 'btn', name: '園芸師' },
+          { id: 'fsh', name: '漁師' }
+        ],
+        defaultPPR: 1200,
+        defaultMPR: 2
+      }
+    };
 
-    // Default configuration for initial load
-    const DEFAULT_JOB_CONFIGS = {};
-    JOBS_DATA.forEach(job => {
-      DEFAULT_JOB_CONFIGS[job.id] = {
-        current: 0,
-        pointsPerRun: 5800,
-        minutesPerRun: 3
-      };
-    });
+    let activeCategory = 'crafter';
 
+    // State structure
     let state = {
-      jobs: JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS)),
+      jobs: {},
       dailyPlaytime: 2
     };
 
-    // Load state from localStorage if exists
+    // Initialize state with defaults
+    function initDefaultState() {
+      Object.keys(CATEGORIES).forEach(catKey => {
+        const cat = CATEGORIES[catKey];
+        cat.jobs.forEach(job => {
+          state.jobs[job.id] = {
+            current: 0,
+            pointsPerRun: cat.defaultPPR,
+            minutesPerRun: cat.defaultMPR
+          };
+        });
+      });
+    }
+
+    // Load state from localStorage
     function loadState() {
-      const saved = localStorage.getItem('ff14_cosmo_calc_state');
+      initDefaultState();
+      const saved = localStorage.getItem('ff14_cosmo_calc_state_v2');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.jobs) {
-            // Merge defaults in case schema changed
-            state.jobs = { ...JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS)), ...parsed.jobs };
+            state.jobs = { ...state.jobs, ...parsed.jobs };
             state.dailyPlaytime = parsed.dailyPlaytime || 2;
           }
         } catch (e) {
@@ -554,7 +620,30 @@
 
     // Save state to localStorage
     function saveState() {
-      localStorage.setItem('ff14_cosmo_calc_state', JSON.stringify(state));
+      localStorage.setItem('ff14_cosmo_calc_state_v2', JSON.stringify(state));
+    }
+
+    // Switch between Crafter and Gatherer tabs
+    function switchCategory(categoryKey) {
+      activeCategory = categoryKey;
+      
+      // Update Active Tab styles
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(`tab-${categoryKey}`).classList.add('active');
+
+      // Update Dashboard Title
+      const catName = CATEGORIES[categoryKey].name;
+      document.getElementById('dashboard-title').textContent = `${catName} 進捗状況`;
+      document.getElementById('bulk-title').textContent = `${catName} 一括設定`;
+
+      // Update Bulk Inputs values based on active category defaults
+      document.getElementById('bulk-points-per-run').value = CATEGORIES[categoryKey].defaultPPR;
+      document.getElementById('bulk-minutes-per-run').value = CATEGORIES[categoryKey].defaultMPR;
+
+      renderJobs();
+      updateCalculations();
     }
 
     // Render HTML structure of Job Cards
@@ -562,8 +651,10 @@
       const container = document.getElementById('jobs-container');
       container.innerHTML = '';
 
-      JOBS_DATA.forEach(job => {
-        const jobData = state.jobs[job.id];
+      const currentCategory = CATEGORIES[activeCategory];
+
+      currentCategory.jobs.forEach(job => {
+        const jobData = state.jobs[job.id] || { current: 0, pointsPerRun: currentCategory.defaultPPR, minutesPerRun: currentCategory.defaultMPR };
         
         const card = document.createElement('div');
         card.className = 'job-card';
@@ -659,8 +750,11 @@
       let totalRemainingRuns = 0;
       let totalRemainingMinutes = 0;
 
-      JOBS_DATA.forEach(job => {
-        const jobData = state.jobs[job.id];
+      const currentCategory = CATEGORIES[activeCategory];
+      const targetGoal = TARGET_POINTS_PER_JOB * currentCategory.jobs.length;
+
+      currentCategory.jobs.forEach(job => {
+        const jobData = state.jobs[job.id] || { current: 0, pointsPerRun: currentCategory.defaultPPR, minutesPerRun: currentCategory.defaultMPR };
         const current = jobData.current;
         const target = TARGET_POINTS_PER_JOB;
         const remaining = Math.max(0, target - current);
@@ -721,9 +815,10 @@
       let totalM = Math.ceil(totalRemainingMinutes % 60);
       document.getElementById('total-remaining-hours').textContent = `${totalH}時間 ${totalM}分`;
 
-      const overallPercentage = ((totalCurrent / (TARGET_POINTS_PER_JOB * JOBS_DATA.length)) * 100).toFixed(1);
+      const overallPercentage = ((totalCurrent / targetGoal) * 100).toFixed(1);
       document.getElementById('overall-percentage').textContent = `${overallPercentage}%`;
       document.getElementById('overall-progress-bar').style.width = `${overallPercentage}%`;
+      document.getElementById('progress-goal-label').textContent = `全体進捗率 (目標: ${targetGoal.toLocaleString()}点)`;
 
       // Sim target days calculation
       const dailyTime = parseFloat(document.getElementById('daily-playtime').value) || 2;
@@ -739,8 +834,10 @@
     // Initialize application events
     document.addEventListener('DOMContentLoaded', () => {
       loadState();
-      renderJobs();
-      updateCalculations();
+      document.getElementById('daily-playtime').value = state.dailyPlaytime;
+      
+      // Default to crafter view
+      switchCategory('crafter');
 
       // Simulation playtime input bind
       document.getElementById('daily-playtime').addEventListener('input', () => {
@@ -753,7 +850,8 @@
         const bulkPPR = parseInt(document.getElementById('bulk-points-per-run').value) || 5800;
         const bulkMPR = parseFloat(document.getElementById('bulk-minutes-per-run').value) || 3;
 
-        JOBS_DATA.forEach(job => {
+        const currentCategory = CATEGORIES[activeCategory];
+        currentCategory.jobs.forEach(job => {
           state.jobs[job.id].pointsPerRun = bulkPPR;
           state.jobs[job.id].minutesPerRun = bulkMPR;
         });
@@ -765,10 +863,15 @@
 
       // Reset All Data Event
       document.getElementById('reset-all-btn').addEventListener('click', () => {
-        if (confirm('すべての入力データをリセットしてよろしいですか？')) {
-          state.jobs = JSON.parse(JSON.stringify(DEFAULT_JOB_CONFIGS));
-          state.dailyPlaytime = 2;
-          document.getElementById('daily-playtime').value = 2;
+        const cat = CATEGORIES[activeCategory];
+        if (confirm(`現在のカテゴリ（${cat.name}）の入力データを初期化してよろしいですか？`)) {
+          cat.jobs.forEach(job => {
+            state.jobs[job.id] = {
+              current: 0,
+              pointsPerRun: cat.defaultPPR,
+              minutesPerRun: cat.defaultMPR
+            };
+          });
           renderJobs();
           updateCalculations();
           saveState();
