@@ -82,6 +82,8 @@
       margin-bottom: 1.5rem;
       border-bottom: 2px solid var(--card-border);
       padding-bottom: 0.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
     .tab-btn {
@@ -115,6 +117,15 @@
       box-shadow: 0 0 8px var(--primary-glow);
     }
 
+    /* Views */
+    .view-content {
+      display: none;
+    }
+
+    .view-content.active {
+      display: block;
+    }
+
     /* Grid Layout for Top Dashboards */
     .dashboard-grid {
       display: grid;
@@ -138,6 +149,7 @@
       position: relative;
       overflow: hidden;
       transition: border-color 0.3s ease;
+      margin-bottom: 1.5rem;
     }
 
     .card:hover {
@@ -242,7 +254,7 @@
       color: var(--text-muted);
     }
 
-    .input-group input {
+    .input-group input, .input-group select {
       background-color: rgba(15, 23, 42, 0.6);
       border: 1px solid var(--card-border);
       color: #ffffff;
@@ -252,7 +264,7 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .input-group input:focus {
+    .input-group input:focus, .input-group select:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px var(--primary-glow);
@@ -307,6 +319,15 @@
 
     .btn-secondary:hover {
       background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: #ffffff;
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
     }
 
     /* Jobs Grid Layout */
@@ -428,6 +449,68 @@
       color: var(--primary);
     }
 
+    /* Efficiency Simulator Styling */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 1rem;
+      background: rgba(15, 23, 42, 0.2);
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    th {
+      background-color: rgba(15, 23, 42, 0.6);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    tr.best-row {
+      background-color: rgba(245, 158, 11, 0.05);
+      border-left: 4px solid var(--primary);
+    }
+
+    .badge-best {
+      background: var(--primary);
+      color: #000000;
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      padding: 1.25rem;
+      border-radius: 8px;
+    }
+
+    @media (min-width: 768px) {
+      .form-row {
+        grid-template-columns: repeat(4, 1fr) auto;
+        align-items: flex-end;
+      }
+    }
+
     /* Footer styling */
     footer {
       text-align: center;
@@ -454,95 +537,160 @@
   <div class="container">
     <header>
       <h1>FF14 <span>コスモ技巧点計算機</span></h1>
-      <p>目標50万点に向けた周回数と残り時間の計算・管理ツール</p>
+      <p>目標50万点に向けた周回数・残り時間の管理 ＆ 効率シミュレーター</p>
     </header>
 
     <!-- Tab Bar -->
     <div class="tabs">
-      <button class="tab-btn active" id="tab-crafter" onclick="switchCategory('crafter')">クラフター (8ジョブ)</button>
-      <button class="tab-btn" id="tab-gatherer" onclick="switchCategory('gatherer')">ギャザラー (3ジョブ)</button>
+      <button class="tab-btn active" id="tab-crafter" onclick="switchTab('crafter')">クラフター (8ジョブ)</button>
+      <button class="tab-btn" id="tab-gatherer" onclick="switchTab('gatherer')">ギャザラー (3ジョブ)</button>
+      <button class="tab-btn" id="tab-efficiency" onclick="switchTab('efficiency')">効率比較シミュレーター</button>
     </div>
 
-    <!-- Top Dashboard -->
-    <div class="dashboard-grid">
-      <!-- Overall Progress Card -->
-      <div class="card">
+    <!-- VIEW 1: CRAFTER & GATHERER TRACKER -->
+    <div id="tracker-view" class="view-content active">
+      <!-- Top Dashboard -->
+      <div class="dashboard-grid">
+        <!-- Overall Progress Card -->
+        <div class="card">
+          <div class="card-title">
+            <span id="dashboard-title">クラフター 進捗状況</span>
+          </div>
+          <div class="summary-stats">
+            <div class="stat-box">
+              <div class="stat-label">合計獲得点数</div>
+              <div class="stat-value" id="total-current-points">0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">総残り点数</div>
+              <div class="stat-value" id="total-remaining-points">4,000,000</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">総残り周回数</div>
+              <div class="stat-value highlight" id="total-remaining-runs">0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">総残り時間</div>
+              <div class="stat-value highlight" id="total-remaining-hours">0時間 0分</div>
+            </div>
+          </div>
+          <div class="progress-container">
+            <div class="progress-info">
+              <span id="progress-goal-label">全体進捗率 (目標: 4,000,000点)</span>
+              <span id="overall-percentage">0.0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="overall-progress-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Playtime Simulation Card -->
+        <div class="card">
+          <div class="card-title">目標達成シミュレーター</div>
+          <div class="sim-inputs">
+            <div class="input-group">
+              <label for="daily-playtime">1日のプレイ予定時間 (時間)</label>
+              <input type="number" id="daily-playtime" value="2" min="0.1" step="0.1">
+            </div>
+            <div class="stat-box" style="margin-top: 0.5rem; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.15);">
+              <div class="stat-label" style="color: var(--text-color);">目標達成までの目安日数</div>
+              <div class="stat-value highlight" id="days-remaining" style="font-size: 1.8rem;">0日</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Settings Card -->
+      <div class="card bulk-card">
         <div class="card-title">
-          <span id="dashboard-title">クラフター 進捗状況</span>
-        </div>
-        <div class="summary-stats">
-          <div class="stat-box">
-            <div class="stat-label">合計獲得点数</div>
-            <div class="stat-value" id="total-current-points">0</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">総残り点数</div>
-            <div class="stat-value" id="total-remaining-points">4,000,000</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">総残り周回数</div>
-            <div class="stat-value highlight" id="total-remaining-runs">0</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">総残り時間</div>
-            <div class="stat-value highlight" id="total-remaining-hours">0時間 0分</div>
+          <div class="flex-header">
+            <span id="bulk-title">クラフター 一括設定</span>
+            <button class="btn btn-secondary reset-all-btn" id="reset-all-btn">現在のカテゴリを初期化</button>
           </div>
         </div>
-        <div class="progress-container">
-          <div class="progress-info">
-            <span id="progress-goal-label">全体進捗率 (目標: 4,000,000点)</span>
-            <span id="overall-percentage">0.0%</span>
-          </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="overall-progress-bar"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Playtime Simulation Card -->
-      <div class="card">
-        <div class="card-title">目標達成シミュレーター</div>
-        <div class="sim-inputs">
+        <div class="bulk-actions">
           <div class="input-group">
-            <label for="daily-playtime">1日のプレイ予定時間 (時間)</label>
-            <input type="number" id="daily-playtime" value="2" min="0.1" step="0.1">
+            <label for="bulk-points-per-run">1回あたりの獲得点数を一括適用</label>
+            <input type="number" id="bulk-points-per-run" value="5800" min="1">
           </div>
-          <div class="stat-box" style="margin-top: 0.5rem; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.15);">
-            <div class="stat-label" style="color: var(--text-color);">目標達成までの目安日数</div>
-            <div class="stat-value highlight" id="days-remaining" style="font-size: 1.8rem;">0日</div>
+          <div class="input-group">
+            <label for="bulk-minutes-per-run">1回あたりの必要分数（手動）を一括適用</label>
+            <input type="number" id="bulk-minutes-per-run" value="3" min="0.1" step="0.1">
           </div>
+          <button class="btn" id="apply-bulk-btn">全ジョブに適用</button>
         </div>
+      </div>
+
+      <!-- Jobs Grid -->
+      <div class="jobs-grid" id="jobs-container">
+        <!-- Dynamic Job Cards will be generated here by Javascript -->
       </div>
     </div>
 
-    <!-- Bulk Settings Card -->
-    <div class="card bulk-card">
-      <div class="card-title">
-        <div class="flex-header">
-          <span id="bulk-title">クラフター 一括設定</span>
-          <button class="btn btn-secondary reset-all-btn" id="reset-all-btn">現在のカテゴリを初期化</button>
-        </div>
-      </div>
-      <div class="bulk-actions">
-        <div class="input-group">
-          <label for="bulk-points-per-run">1回あたりの獲得点数を一括適用</label>
-          <input type="number" id="bulk-points-per-run" value="5800" min="1">
-        </div>
-        <div class="input-group">
-          <label for="bulk-minutes-per-run">1回あたりの必要分数（手動）を一括適用</label>
-          <input type="number" id="bulk-minutes-per-run" value="3" min="0.1" step="0.1">
-        </div>
-        <button class="btn" id="apply-bulk-btn">全ジョブに適用</button>
-      </div>
-    </div>
+    <!-- VIEW 2: EFFICIENCY COMPARISON -->
+    <div id="efficiency-view" class="view-content">
+      <div class="card">
+        <div class="card-title">効率比較シミュレーター</div>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">
+          異なる製作レシピや採集ルートの「時間あたり獲得点数」を計算して比較します。高難易度レシピ（失敗リスクあり）と通常レシピの効率比較などにご活用ください。
+        </p>
 
-    <!-- Jobs Grid -->
-    <div class="jobs-grid" id="jobs-container">
-      <!-- Dynamic Job Cards will be generated here by Javascript -->
+        <!-- Form to Add Custom Recipe -->
+        <div class="form-row">
+          <div class="input-group">
+            <label for="eff-name">製作物 / ルート名</label>
+            <input type="text" id="eff-name" placeholder="例: 木工高難易度(マクロ)">
+          </div>
+          <div class="input-group">
+            <label for="eff-points">獲得点数</label>
+            <input type="number" id="eff-points" value="5800" min="1">
+          </div>
+          <div class="input-group">
+            <label for="eff-time">1回あたりの必要時間 (秒/分)</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="number" id="eff-time" value="180" min="1" style="flex: 1;">
+              <select id="eff-time-unit" style="width: 70px;">
+                <option value="sec" selected>秒</option>
+                <option value="min">分</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="eff-success">製作/採集 成功率 (%)</label>
+            <input type="number" id="eff-success" value="95" min="1" max="100">
+          </div>
+          <button class="btn" id="add-eff-btn">シミュレーション追加</button>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>製作物 / 手法名</th>
+                <th>表示点数</th>
+                <th>成功率考慮の実効点数</th>
+                <th>1回あたりの時間</th>
+                <th>時間あたり獲得点数</th>
+                <th>50万点達成までの時間</th>
+                <th style="width: 80px; text-align: center;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="efficiency-tbody">
+              <!-- Comparison rows will be rendered here dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 1.5rem; text-align: right;">
+          <button class="btn btn-secondary" id="reset-eff-btn">テンプレートに戻す</button>
+        </div>
+      </div>
     </div>
 
     <footer>
-      <p>&copy; 2026 FF14 Cosmo Splendor Calculator. Designed for Final Fantasy XIV.</p>
+      <p>&copy; 2026 FF14 Cosmo Splendor Calculator. Designed for Final Fantasy Union.</p>
     </footer>
   </div>
 
@@ -579,12 +727,21 @@
       }
     };
 
+    // Default comparison recipes templates
+    const DEFAULT_EFFICIENCY_TEMPLATES = [
+      { id: 't1', name: 'クラフター高難易度レシピ (手動/マクロ)', points: 5800, timeValue: 180, timeUnit: 'sec', successRate: 95 },
+      { id: 't2', name: 'クラフター通常レシピ (高速マクロ)', points: 1200, timeValue: 45, timeUnit: 'sec', successRate: 100 },
+      { id: 't3', name: 'ギャザラー検品素材 (精選・高技巧値)', points: 400, timeValue: 15, timeUnit: 'sec', successRate: 100 },
+      { id: 't4', name: 'ギャザラー通常採集 (一般素材)', points: 80, timeValue: 6, timeUnit: 'sec', successRate: 100 }
+    ];
+
     let activeCategory = 'crafter';
 
     // State structure
     let state = {
       jobs: {},
-      dailyPlaytime: 2
+      dailyPlaytime: 2,
+      efficiencyItems: JSON.parse(JSON.stringify(DEFAULT_EFFICIENCY_TEMPLATES))
     };
 
     // Initialize state with defaults
@@ -599,18 +756,20 @@
           };
         });
       });
+      state.efficiencyItems = JSON.parse(JSON.stringify(DEFAULT_EFFICIENCY_TEMPLATES));
     }
 
     // Load state from localStorage
     function loadState() {
       initDefaultState();
-      const saved = localStorage.getItem('ff14_cosmo_calc_state_v2');
+      const saved = localStorage.getItem('ff14_cosmo_calc_state_v3');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.jobs) {
-            state.jobs = { ...state.jobs, ...parsed.jobs };
+          if (parsed) {
+            if (parsed.jobs) state.jobs = { ...state.jobs, ...parsed.jobs };
             state.dailyPlaytime = parsed.dailyPlaytime || 2;
+            if (parsed.efficiencyItems) state.efficiencyItems = parsed.efficiencyItems;
           }
         } catch (e) {
           console.error("Failed to parse state", e);
@@ -620,30 +779,37 @@
 
     // Save state to localStorage
     function saveState() {
-      localStorage.setItem('ff14_cosmo_calc_state_v2', JSON.stringify(state));
+      localStorage.setItem('ff14_cosmo_calc_state_v3', JSON.stringify(state));
     }
 
-    // Switch between Crafter and Gatherer tabs
-    function switchCategory(categoryKey) {
-      activeCategory = categoryKey;
-      
-      // Update Active Tab styles
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      document.getElementById(`tab-${categoryKey}`).classList.add('active');
+    // Switch Tabs (including the new Efficiency Sim tab)
+    function switchTab(tabKey) {
+      // Deactivate all tabs and views
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('tracker-view').classList.remove('active');
+      document.getElementById('efficiency-view').classList.remove('active');
 
-      // Update Dashboard Title
-      const catName = CATEGORIES[categoryKey].name;
-      document.getElementById('dashboard-title').textContent = `${catName} 進捗状況`;
-      document.getElementById('bulk-title').textContent = `${catName} 一括設定`;
+      if (tabKey === 'efficiency') {
+        document.getElementById('tab-efficiency').classList.add('active');
+        document.getElementById('efficiency-view').classList.add('active');
+        renderEfficiency();
+      } else {
+        // Trackers
+        document.getElementById(`tab-${tabKey}`).classList.add('active');
+        document.getElementById('tracker-view').classList.add('active');
+        
+        activeCategory = tabKey;
+        
+        const catName = CATEGORIES[tabKey].name;
+        document.getElementById('dashboard-title').textContent = `${catName} 進捗状況`;
+        document.getElementById('bulk-title').textContent = `${catName} 一括設定`;
 
-      // Update Bulk Inputs values based on active category defaults
-      document.getElementById('bulk-points-per-run').value = CATEGORIES[categoryKey].defaultPPR;
-      document.getElementById('bulk-minutes-per-run').value = CATEGORIES[categoryKey].defaultMPR;
+        document.getElementById('bulk-points-per-run').value = CATEGORIES[tabKey].defaultPPR;
+        document.getElementById('bulk-minutes-per-run').value = CATEGORIES[tabKey].defaultMPR;
 
-      renderJobs();
-      updateCalculations();
+        renderJobs();
+        updateCalculations();
+      }
     }
 
     // Render HTML structure of Job Cards
@@ -831,13 +997,125 @@
       }
     }
 
+    // Render Efficiency comparison rows
+    function renderEfficiency() {
+      const tbody = document.getElementById('efficiency-tbody');
+      tbody.innerHTML = '';
+
+      // Calculate efficiency statistics for each item
+      const computedItems = state.efficiencyItems.map(item => {
+        // Calculate time in minutes and hours
+        const timeInMin = item.timeUnit === 'sec' ? item.timeValue / 60 : item.timeValue;
+        const timeInHour = timeInMin / 60;
+
+        // Success rate multiplier
+        const expectedPointsPerRun = item.points * (item.successRate / 100);
+
+        // Points per hour
+        const pointsPerHour = timeInHour > 0 ? expectedPointsPerRun / timeInHour : 0;
+
+        // Time to 500k points in hours
+        const hoursToGoal = pointsPerHour > 0 ? TARGET_POINTS_PER_JOB / pointsPerHour : 0;
+
+        return {
+          ...item,
+          expectedPointsPerRun,
+          pointsPerHour,
+          hoursToGoal
+        };
+      });
+
+      // Find the best item based on pointsPerHour
+      let maxPPH = 0;
+      computedItems.forEach(item => {
+        if (item.pointsPerHour > maxPPH) {
+          maxPPH = item.pointsPerHour;
+        }
+      });
+
+      computedItems.forEach(item => {
+        const tr = document.createElement('tr');
+        const isBest = item.pointsPerHour === maxPPH && maxPPH > 0;
+        if (isBest) {
+          tr.className = 'best-row';
+        }
+
+        // Format time string
+        const timeDisplay = `${item.timeValue}${item.timeUnit === 'sec' ? '秒' : '分'}`;
+        
+        // Format points per hour
+        const pphStr = Math.round(item.pointsPerHour).toLocaleString() + ' 点';
+        
+        // Format hours to goal
+        const hoursStr = item.hoursToGoal.toFixed(1) + ' 時間';
+
+        tr.innerHTML = `
+          <td>
+            <strong>${item.name}</strong>
+            ${isBest ? '<span class="badge-best">最高効率</span>' : ''}
+          </td>
+          <td>${item.points.toLocaleString()} 点</td>
+          <td>${item.expectedPointsPerRun.toFixed(0)} 点 (${item.successRate}%)</td>
+          <td>${timeDisplay}</td>
+          <td class="${isBest ? 'highlight' : ''}" style="font-weight: bold;">${pphStr} / 時間</td>
+          <td style="font-weight: bold;">${hoursStr}</td>
+          <td style="text-align: center;">
+            <button class="btn btn-secondary btn-danger" style="height: 28px; padding: 0 0.5rem; font-size: 0.8rem;" onclick="deleteEfficiencyItem('${item.id}')">削除</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Add custom efficiency item
+    document.getElementById('add-eff-btn').addEventListener('click', () => {
+      const name = document.getElementById('eff-name').value.trim() || '新規シミュレーション';
+      const points = parseInt(document.getElementById('eff-points').value) || 100;
+      const timeValue = parseFloat(document.getElementById('eff-time').value) || 60;
+      const timeUnit = document.getElementById('eff-time-unit').value;
+      const successRate = parseInt(document.getElementById('eff-success').value) || 100;
+
+      const newItem = {
+        id: 'c_' + Date.now(),
+        name,
+        points,
+        timeValue,
+        timeUnit,
+        successRate
+      };
+
+      state.efficiencyItems.push(newItem);
+      saveState();
+      renderEfficiency();
+
+      // Clear input fields
+      document.getElementById('eff-name').value = '';
+    });
+
+    // Delete custom efficiency item
+    window.deleteEfficiencyItem = function(id) {
+      state.efficiencyItems = state.efficiencyItems.filter(item => item.id !== id);
+      saveState();
+      renderEfficiency();
+    };
+
+    // Reset efficiency items to default templates
+    document.getElementById('reset-eff-btn').addEventListener('click', () => {
+      if (confirm('効率比較データを初期テンプレートに戻しますか？')) {
+        state.efficiencyItems = JSON.parse(JSON.stringify(DEFAULT_EFFICIENCY_TEMPLATES));
+        saveState();
+        renderEfficiency();
+      }
+    });
+
     // Initialize application events
     document.addEventListener('DOMContentLoaded', () => {
       loadState();
       document.getElementById('daily-playtime').value = state.dailyPlaytime;
       
       // Default to crafter view
-      switchCategory('crafter');
+      switchTab('crafter');
 
       // Simulation playtime input bind
       document.getElementById('daily-playtime').addEventListener('input', () => {
