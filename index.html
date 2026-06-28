@@ -615,8 +615,14 @@
             <input type="number" id="bulk-points-per-run" value="5800" min="1">
           </div>
           <div class="input-group">
-            <label for="bulk-minutes-per-run">1回あたりの必要分数（手動）を一括適用</label>
-            <input type="number" id="bulk-minutes-per-run" value="3" min="0.1" step="0.1">
+            <label for="bulk-time-value">1回あたりの必要時間（手動）を一括適用</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="number" id="bulk-time-value" value="180" min="0.1" step="0.1" style="flex: 1;">
+              <select id="bulk-time-unit" style="width: 70px;">
+                <option value="sec" selected>秒</option>
+                <option value="min">分</option>
+              </select>
+            </div>
           </div>
           <button class="btn" id="apply-bulk-btn">全ジョブに適用</button>
         </div>
@@ -712,7 +718,8 @@
           { id: 'cul', name: '調理師' }
         ],
         defaultPPR: 5800,
-        defaultMPR: 3
+        defaultTimeVal: 180,
+        defaultTimeUnit: 'sec' // 秒デフォルトへ変更
       },
       gatherer: {
         name: 'ギャザラー',
@@ -723,7 +730,8 @@
           { id: 'fsh', name: '漁師' }
         ],
         defaultPPR: 1200,
-        defaultMPR: 2
+        defaultTimeVal: 120,
+        defaultTimeUnit: 'sec' // 秒デフォルトへ変更
       }
     };
 
@@ -752,7 +760,8 @@
           state.jobs[job.id] = {
             current: 0,
             pointsPerRun: cat.defaultPPR,
-            minutesPerRun: cat.defaultMPR
+            timeValue: cat.defaultTimeVal,
+            timeUnit: cat.defaultTimeUnit
           };
         });
       });
@@ -762,12 +771,23 @@
     // Load state from localStorage
     function loadState() {
       initDefaultState();
-      const saved = localStorage.getItem('ff14_cosmo_calc_state_v3');
+      const saved = localStorage.getItem('ff14_cosmo_calc_state_v4');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed) {
-            if (parsed.jobs) state.jobs = { ...state.jobs, ...parsed.jobs };
+            if (parsed.jobs) {
+              // Backward compatibility check for minutesPerRun -> timeValue & timeUnit
+              Object.keys(parsed.jobs).forEach(jobId => {
+                const jobData = parsed.jobs[jobId];
+                if (jobData.minutesPerRun !== undefined && jobData.timeValue === undefined) {
+                  jobData.timeValue = jobData.minutesPerRun;
+                  jobData.timeUnit = 'min';
+                  delete jobData.minutesPerRun;
+                }
+              });
+              state.jobs = { ...state.jobs, ...parsed.jobs };
+            }
             state.dailyPlaytime = parsed.dailyPlaytime || 2;
             if (parsed.efficiencyItems) state.efficiencyItems = parsed.efficiencyItems;
           }
@@ -779,12 +799,11 @@
 
     // Save state to localStorage
     function saveState() {
-      localStorage.setItem('ff14_cosmo_calc_state_v3', JSON.stringify(state));
+      localStorage.setItem('ff14_cosmo_calc_state_v4', JSON.stringify(state));
     }
 
-    // Switch Tabs (including the new Efficiency Sim tab)
+    // Switch Tabs
     function switchTab(tabKey) {
-      // Deactivate all tabs and views
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.getElementById('tracker-view').classList.remove('active');
       document.getElementById('efficiency-view').classList.remove('active');
@@ -794,7 +813,6 @@
         document.getElementById('efficiency-view').classList.add('active');
         renderEfficiency();
       } else {
-        // Trackers
         document.getElementById(`tab-${tabKey}`).classList.add('active');
         document.getElementById('tracker-view').classList.add('active');
         
@@ -805,7 +823,8 @@
         document.getElementById('bulk-title').textContent = `${catName} 一括設定`;
 
         document.getElementById('bulk-points-per-run').value = CATEGORIES[tabKey].defaultPPR;
-        document.getElementById('bulk-minutes-per-run').value = CATEGORIES[tabKey].defaultMPR;
+        document.getElementById('bulk-time-value').value = CATEGORIES[tabKey].defaultTimeVal;
+        document.getElementById('bulk-time-unit').value = CATEGORIES[tabKey].defaultTimeUnit;
 
         renderJobs();
         updateCalculations();
@@ -820,7 +839,12 @@
       const currentCategory = CATEGORIES[activeCategory];
 
       currentCategory.jobs.forEach(job => {
-        const jobData = state.jobs[job.id] || { current: 0, pointsPerRun: currentCategory.defaultPPR, minutesPerRun: currentCategory.defaultMPR };
+        const jobData = state.jobs[job.id] || { 
+          current: 0, 
+          pointsPerRun: currentCategory.defaultPPR, 
+          timeValue: currentCategory.defaultTimeVal, 
+          timeUnit: currentCategory.defaultTimeUnit 
+        };
         
         const card = document.createElement('div');
         card.className = 'job-card';
@@ -847,8 +871,14 @@
             </div>
 
             <div class="input-group" style="grid-column: span 2;">
-              <label for="minutes-${job.id}">1回あたりの必要分数</label>
-              <input type="number" id="minutes-${job.id}" value="${jobData.minutesPerRun}" min="0.1" step="0.1">
+              <label for="timeVal-${job.id}">1回あたりの必要時間 (秒/分)</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="number" id="timeVal-${job.id}" value="${jobData.timeValue}" min="0.1" step="0.1" style="flex: 1;">
+                <select id="timeUnit-${job.id}" style="width: 70px;">
+                  <option value="sec" ${jobData.timeUnit === 'sec' ? 'selected' : ''}>秒</option>
+                  <option value="min" ${jobData.timeUnit === 'min' ? 'selected' : ''}>分</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -899,10 +929,16 @@
           saveState();
         });
 
-        document.getElementById(`minutes-${job.id}`).addEventListener('input', (e) => {
+        document.getElementById(`timeVal-${job.id}`).addEventListener('input', (e) => {
           let val = parseFloat(e.target.value) || 0.1;
           if (val < 0.1) val = 0.1;
-          state.jobs[job.id].minutesPerRun = val;
+          state.jobs[job.id].timeValue = val;
+          updateCalculations();
+          saveState();
+        });
+
+        document.getElementById(`timeUnit-${job.id}`).addEventListener('change', (e) => {
+          state.jobs[job.id].timeUnit = e.target.value;
           updateCalculations();
           saveState();
         });
@@ -920,7 +956,12 @@
       const targetGoal = TARGET_POINTS_PER_JOB * currentCategory.jobs.length;
 
       currentCategory.jobs.forEach(job => {
-        const jobData = state.jobs[job.id] || { current: 0, pointsPerRun: currentCategory.defaultPPR, minutesPerRun: currentCategory.defaultMPR };
+        const jobData = state.jobs[job.id] || { 
+          current: 0, 
+          pointsPerRun: currentCategory.defaultPPR, 
+          timeValue: currentCategory.defaultTimeVal, 
+          timeUnit: currentCategory.defaultTimeUnit 
+        };
         const current = jobData.current;
         const target = TARGET_POINTS_PER_JOB;
         const remaining = Math.max(0, target - current);
@@ -928,7 +969,7 @@
         totalCurrent += current;
         totalRemainingPoints += remaining;
 
-        // Progress percentage for job
+        // Progress percentage
         const percentage = ((current / target) * 100).toFixed(1);
         document.getElementById(`percentage-${job.id}`).textContent = `${percentage}%`;
         document.getElementById(`bar-${job.id}`).style.width = `${percentage}%`;
@@ -952,8 +993,9 @@
         document.getElementById(`rem-runs-${job.id}`).textContent = runs.toLocaleString();
         totalRemainingRuns += runs;
 
-        // Remaining time for this job
-        const minutes = runs * jobData.minutesPerRun;
+        // Convert time to minutes for this job
+        const multiplier = jobData.timeUnit === 'sec' ? 1 / 60 : 1;
+        const minutes = runs * jobData.timeValue * multiplier;
         totalRemainingMinutes += minutes;
 
         // Format job remaining time
@@ -1002,19 +1044,11 @@
       const tbody = document.getElementById('efficiency-tbody');
       tbody.innerHTML = '';
 
-      // Calculate efficiency statistics for each item
       const computedItems = state.efficiencyItems.map(item => {
-        // Calculate time in minutes and hours
         const timeInMin = item.timeUnit === 'sec' ? item.timeValue / 60 : item.timeValue;
         const timeInHour = timeInMin / 60;
-
-        // Success rate multiplier
         const expectedPointsPerRun = item.points * (item.successRate / 100);
-
-        // Points per hour
         const pointsPerHour = timeInHour > 0 ? expectedPointsPerRun / timeInHour : 0;
-
-        // Time to 500k points in hours
         const hoursToGoal = pointsPerHour > 0 ? TARGET_POINTS_PER_JOB / pointsPerHour : 0;
 
         return {
@@ -1025,7 +1059,6 @@
         };
       });
 
-      // Find the best item based on pointsPerHour
       let maxPPH = 0;
       computedItems.forEach(item => {
         if (item.pointsPerHour > maxPPH) {
@@ -1040,13 +1073,8 @@
           tr.className = 'best-row';
         }
 
-        // Format time string
         const timeDisplay = `${item.timeValue}${item.timeUnit === 'sec' ? '秒' : '分'}`;
-        
-        // Format points per hour
         const pphStr = Math.round(item.pointsPerHour).toLocaleString() + ' 点';
-        
-        // Format hours to goal
         const hoursStr = item.hoursToGoal.toFixed(1) + ' 時間';
 
         tr.innerHTML = `
@@ -1089,7 +1117,6 @@
       saveState();
       renderEfficiency();
 
-      // Clear input fields
       document.getElementById('eff-name').value = '';
     });
 
@@ -1126,12 +1153,14 @@
       // Bulk Apply Event
       document.getElementById('apply-bulk-btn').addEventListener('click', () => {
         const bulkPPR = parseInt(document.getElementById('bulk-points-per-run').value) || 5800;
-        const bulkMPR = parseFloat(document.getElementById('bulk-minutes-per-run').value) || 3;
+        const bulkTimeVal = parseFloat(document.getElementById('bulk-time-value').value) || 180;
+        const bulkTimeUnit = document.getElementById('bulk-time-unit').value;
 
         const currentCategory = CATEGORIES[activeCategory];
         currentCategory.jobs.forEach(job => {
           state.jobs[job.id].pointsPerRun = bulkPPR;
-          state.jobs[job.id].minutesPerRun = bulkMPR;
+          state.jobs[job.id].timeValue = bulkTimeVal;
+          state.jobs[job.id].timeUnit = bulkTimeUnit;
         });
 
         renderJobs();
@@ -1147,7 +1176,8 @@
             state.jobs[job.id] = {
               current: 0,
               pointsPerRun: cat.defaultPPR,
-              minutesPerRun: cat.defaultMPR
+              timeValue: cat.defaultTimeVal,
+              timeUnit: cat.defaultTimeUnit
             };
           });
           renderJobs();
